@@ -1087,6 +1087,20 @@
                 if (saved) {
                     config = { ...DEFAULT_CONFIG, ...JSON.parse(saved) };
                 }
+                
+                // Fix for OBS / GitHub users updating DEFAULT_CONFIG in code
+                const savedCodeTargetDate = localStorage.getItem("gta6_code_target_date");
+                if (savedCodeTargetDate !== DEFAULT_CONFIG.targetDate) {
+                    config.targetDate = DEFAULT_CONFIG.targetDate;
+                    localStorage.setItem("gta6_code_target_date", DEFAULT_CONFIG.targetDate);
+                    saveConfig();
+                }
+
+                // Allow URL parameters to override config (e.g. ?targetDate=2026-01-01T00:00)
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.has('targetDate')) {
+                    config.targetDate = urlParams.get('targetDate');
+                }
             } catch (e) {
                 console.error("Local storage error:", e);
             }
