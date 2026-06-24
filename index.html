@@ -1,0 +1,1492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAMGD - LIVE COUNTDOWN OVERLAY</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --accent-color: #ff007f;
+            --accent-color-rgb: 255, 0, 127;
+            --secondary-color: #ff8c00;
+            --secondary-color-rgb: 255, 140, 0;
+            --bg-dim: 0.65;
+            --bg-blur: 8px;
+            --glow-strength: 15px;
+            --neon-glow: 0 0 10px rgba(var(--accent-color-rgb), 0.6), 0 0 20px rgba(var(--accent-color-rgb), 0.4);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            height: 100vh;
+            overflow: hidden;
+            background-color: #06040a;
+            font-family: 'Outfit', sans-serif;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        /* BACKGROUND IMAGE LAYERS */
+        .bg-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .bg-image {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: url("gta 6 bg.png") center center/cover no-repeat;
+            transition: filter 0.5s ease;
+        }
+
+        .bg-overlay {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                135deg,
+                rgba(6, 4, 10, var(--bg-dim)),
+                rgba(24, 12, 36, calc(var(--bg-dim) + 0.1))
+            );
+            transition: background 0.5s ease;
+        }
+
+        /* DYNAMIC PARTICLES */
+        #particles-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        /* LIVE BADGE */
+        .live-badge-wrapper {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            z-index: 10;
+        }
+
+        .live-badge {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255, 0, 0, 0.2);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 0, 0, 0.5);
+            color: #ffffff;
+            padding: 8px 18px;
+            border-radius: 30px;
+            font-size: 16px;
+            font-weight: 800;
+            letter-spacing: 2px;
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.3);
+        }
+
+        .live-dot {
+            width: 10px;
+            height: 10px;
+            background-color: #ff0000;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #ff0000;
+            animation: pulse 1.2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(0.9);
+                opacity: 0.5;
+            }
+            50% {
+                transform: scale(1.2);
+                opacity: 1;
+                box-shadow: 0 0 15px #ff0000;
+            }
+            100% {
+                transform: scale(0.9);
+                opacity: 0.5;
+            }
+        }
+
+        /* AUDIO WARNING NOTIFICATION */
+        .audio-prompt {
+            position: absolute;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            background: rgba(18, 12, 28, 0.85);
+            border: 1px solid var(--accent-color);
+            padding: 10px 20px;
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            box-shadow: var(--neon-glow);
+            transition: all 0.3s ease;
+            animation: bounce 2s infinite;
+        }
+
+        .audio-prompt:hover {
+            transform: translateX(-50%) scale(1.05);
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateX(-50%) translateY(0); }
+            40% { transform: translateX(-50%) translateY(-10px); }
+            60% { transform: translateX(-50%) translateY(-5px); }
+        }
+
+        /* MAIN CONTENT STRUCTURE */
+        .main-layout {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 40px;
+            width: 95%;
+            max-width: 1500px;
+            height: 80vh;
+            z-index: 2;
+        }
+
+        /* SIDE CARDS */
+        .side-card {
+            flex: 1;
+            max-width: 320px;
+            height: 480px;
+            background: rgba(18, 12, 28, 0.45);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .side-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 100%;
+            background: linear-gradient(to bottom, rgba(var(--accent-color-rgb), 0.1), transparent);
+            pointer-events: none;
+            opacity: 0.7;
+        }
+
+        .side-card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(var(--accent-color-rgb), 0.3);
+            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.6), 0 0 15px rgba(var(--accent-color-rgb), 0.2);
+        }
+
+        .side-card-label {
+            font-size: 14px;
+            font-weight: 800;
+            letter-spacing: 3px;
+            color: var(--accent-color);
+            text-shadow: var(--neon-glow);
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+
+        .side-card-img-container {
+            width: 100%;
+            height: 80%;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            position: relative;
+        }
+
+        .side-card-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.6s ease;
+        }
+
+        .side-card:hover .side-card-img {
+            transform: scale(1.06);
+        }
+
+        .side-card-footer {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-top: 12px;
+            text-align: center;
+        }
+
+        /* CENTER TIMER CONTAINER */
+        .center-container {
+            flex: 2;
+            max-width: 800px;
+            background: rgba(18, 12, 28, 0.4);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 30px;
+            padding: 50px 40px;
+            text-align: center;
+            box-shadow: 
+                0 25px 50px rgba(0, 0, 0, 0.6),
+                inset 0 1px 0 rgba(255, 255, 255, 0.08),
+                0 0 30px rgba(var(--accent-color-rgb), 0.1);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .center-container::after {
+            content: '';
+            position: absolute;
+            top: -20%;
+            left: -20%;
+            width: 140%;
+            height: 140%;
+            background: radial-gradient(circle, rgba(var(--accent-color-rgb), 0.08) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        .logo-text {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 80px;
+            font-weight: 900;
+            background: linear-gradient(135deg, #ffffff 30%, rgba(255,255,255,0.7) 70%, var(--accent-color) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 8px;
+            text-shadow: 0 0 20px rgba(var(--accent-color-rgb), 0.2);
+            margin-bottom: 5px;
+        }
+
+        .topic-text {
+            font-size: 32px;
+            font-weight: 800;
+            letter-spacing: 5px;
+            color: #ffffff;
+            text-transform: uppercase;
+            margin-bottom: 40px;
+            position: relative;
+            display: inline-block;
+        }
+
+        .topic-text::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 5%;
+            width: 90%;
+            height: 3px;
+            background: linear-gradient(to right, transparent, var(--accent-color), var(--secondary-color), transparent);
+            box-shadow: var(--neon-glow);
+        }
+
+        /* TIMER CARDS GRID */
+        .timer-grid {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 10px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .timer-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 18px;
+            width: 130px;
+            height: 150px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .timer-card:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(var(--accent-color-rgb), 0.3);
+            transform: translateY(-5px);
+        }
+
+        .timer-number {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 55px;
+            font-weight: 700;
+            color: #ffffff;
+            line-height: 1;
+            text-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+        }
+
+        .timer-card:hover .timer-number {
+            color: var(--accent-color);
+            text-shadow: var(--neon-glow);
+        }
+
+        .timer-card::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 10%;
+            width: 80%;
+            height: 3px;
+            background-color: var(--accent-color);
+            box-shadow: var(--neon-glow);
+            border-radius: 3px 3px 0 0;
+            opacity: 0.5;
+            transition: opacity 0.3s;
+        }
+
+        .timer-card:hover::after {
+            opacity: 1;
+        }
+
+        .timer-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.4);
+            letter-spacing: 2px;
+            margin-top: 12px;
+            text-transform: uppercase;
+        }
+
+        /* SETTINGS FLOATING TOGGLE BUTTON */
+        .settings-toggle {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            z-index: 10;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(18, 12, 28, 0.5);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+        }
+
+        .settings-toggle:hover {
+            transform: rotate(45deg) scale(1.1);
+            border-color: var(--accent-color);
+            box-shadow: var(--neon-glow);
+        }
+
+        .settings-toggle svg {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+
+        .settings-toggle.hidden {
+            display: none !important;
+        }
+
+        /* SETTINGS CONTROL SIDEBAR */
+        .settings-panel {
+            position: fixed;
+            top: 0;
+            right: -420px;
+            width: 390px;
+            height: 100vh;
+            background: rgba(10, 7, 16, 0.94);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 1000;
+            transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            padding: 30px 25px;
+            box-shadow: -15px 0 40px rgba(0,0,0,0.6);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .settings-panel.open {
+            right: 0;
+        }
+
+        .settings-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 15px;
+        }
+
+        .settings-title {
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .close-btn {
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 28px;
+            cursor: pointer;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+
+        .close-btn:hover {
+            color: var(--accent-color);
+        }
+
+        .settings-section {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            padding: 20px;
+            border-radius: 16px;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--accent-color);
+            margin-bottom: 5px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            font-size: 13px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .form-input {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 10px 12px;
+            color: #ffffff;
+            font-family: inherit;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 8px rgba(var(--accent-color-rgb), 0.3);
+        }
+
+        /* Color Theme Chips */
+        .color-chips {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 5px;
+        }
+
+        .color-chip {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .color-chip.active {
+            border-color: #ffffff;
+            transform: scale(1.1);
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+        }
+
+        /* Switch toggle CSS */
+        .switch-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .switch-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 46px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.15);
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--accent-color);
+        }
+
+        input:focus + .slider {
+            box-shadow: 0 0 1px var(--accent-color);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(22px);
+        }
+
+        /* Slider Styles */
+        .range-slider-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .range-slider-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .range-input {
+            width: 100%;
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 5px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .range-input::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent-color);
+            cursor: pointer;
+            box-shadow: var(--neon-glow);
+        }
+
+        .btn-primary {
+            background: var(--accent-color);
+            border: none;
+            color: #ffffff;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 15px rgba(var(--accent-color-rgb), 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(var(--accent-color-rgb), 0.5), var(--neon-glow);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        /* FOOTER TICKER */
+        .footer-ticker-container {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 50px;
+            background: rgba(18, 12, 28, 0.5);
+            backdrop-filter: blur(8px);
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            display: flex;
+            align-items: center;
+            overflow: hidden;
+            z-index: 5;
+        }
+
+        .ticker-wrap {
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .ticker {
+            display: inline-block;
+            white-space: nowrap;
+            padding-right: 100%;
+            animation: ticker 25s linear infinite;
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            color: #ffffff;
+            text-transform: uppercase;
+        }
+
+        .ticker span {
+            display: inline-block;
+            padding: 0 30px;
+        }
+
+        .ticker-accent {
+            color: var(--accent-color);
+            text-shadow: var(--neon-glow);
+        }
+
+        @keyframes ticker {
+            0% {
+                transform: translate3d(0, 0, 0);
+            }
+            100% {
+                transform: translate3d(-100%, 0, 0);
+            }
+        }
+
+        /* BOTTOM RIGHT CHANNEL LOGO */
+        .channel-logo-wrapper {
+            position: absolute;
+            bottom: 70px;
+            right: 30px;
+            z-index: 10;
+            width: 85px;
+            height: 85px;
+            border-radius: 50%;
+            background: rgba(18, 12, 28, 0.5);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 2px solid var(--accent-color);
+            box-shadow: var(--neon-glow);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .channel-logo-wrapper:hover {
+            transform: scale(1.1) rotate(8deg);
+            box-shadow: 0 0 25px rgba(var(--accent-color-rgb), 0.7), var(--neon-glow);
+            cursor: pointer;
+        }
+
+        .channel-logo-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* RESPONSIVE SCALING */
+        @media (max-width: 1200px) {
+            .side-card {
+                display: none; /* Hide cards on smaller viewports */
+            }
+            .center-container {
+                flex: 1;
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .logo-text {
+                font-size: 55px;
+            }
+            .topic-text {
+                font-size: 22px;
+            }
+            .timer-card {
+                width: 90px;
+                height: 110px;
+            }
+            .timer-number {
+                font-size: 38px;
+            }
+            .timer-grid {
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Background Layer -->
+    <div class="bg-container">
+        <div id="bgImage" class="bg-image"></div>
+        <div id="bgOverlay" class="bg-overlay"></div>
+    </div>
+
+    <!-- Live Floating Particles Canvas -->
+    <canvas id="particles-canvas"></canvas>
+
+    <!-- Glowing Live Badge -->
+    <div class="live-badge-wrapper">
+        <div class="live-badge">
+            <div class="live-dot"></div>
+            <span id="liveText">LIVE</span>
+        </div>
+    </div>
+
+    <!-- Audio Unmute Prompt -->
+    <div id="audioPrompt" class="audio-prompt" style="display: none;">
+        <span>🔊 Click to enable Background Audio</span>
+    </div>
+
+    <!-- Main Container Layout -->
+    <div class="main-layout">
+        
+        <!-- Left Poster Card -->
+        <div id="leftCard" class="side-card">
+            <div class="side-card-label">Official Art</div>
+            <div class="side-card-img-container">
+                <img class="side-card-img" src="poster_full.0az_iud2g3y4j.jpg" alt="GTA 6 Official Poster">
+            </div>
+            <div class="side-card-footer">Grand Theft Auto VI</div>
+        </div>
+
+        <!-- Central Timer Panel -->
+        <div class="center-container">
+            <div id="channelName" class="logo-text">RAMGD</div>
+            <div id="countdownTopic" class="topic-text">GTA 6 PRE-ORDER COUNTDOWN</div>
+            
+            <div class="timer-grid">
+                <div class="timer-card">
+                    <span id="daysBox" class="timer-number">00</span>
+                    <span class="timer-label">Days</span>
+                </div>
+                <div class="timer-card">
+                    <span id="hoursBox" class="timer-number">00</span>
+                    <span class="timer-label">Hours</span>
+                </div>
+                <div class="timer-card">
+                    <span id="minutesBox" class="timer-number">00</span>
+                    <span class="timer-label">Minutes</span>
+                </div>
+                <div class="timer-card">
+                    <span id="secondsBox" class="timer-number">00</span>
+                    <span class="timer-label">Seconds</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Video Thumbnail Card -->
+        <div id="rightCard" class="side-card">
+            <div class="side-card-label">Trailer Feed</div>
+            <div class="side-card-img-container">
+                <img class="side-card-img" src="gta 6 2.jpg" alt="GTA VI Keyart Image">
+            </div>
+            <div class="side-card-footer">Vice City Awaits</div>
+        </div>
+
+    </div>
+
+    <!-- Bottom Right Channel Profile Logo -->
+    <div id="channelLogoContainer" class="channel-logo-wrapper">
+        <img id="channelLogoImg" src="channels4_profile.jpg" alt="Channel Profile Logo">
+    </div>
+
+    <!-- Bottom Ticker Panel -->
+    <div class="footer-ticker-container">
+        <div class="ticker-wrap">
+            <div id="marqueeTicker" class="ticker">
+                <span>🔥 WAITING FOR GTA 6 PRE-ORDER • LIVE ON RAMGD • PRE-ORDERS COMING SOON 🔥</span>
+                <span>🔥 WAITING FOR GTA 6 PRE-ORDER • LIVE ON RAMGD • PRE-ORDERS COMING SOON 🔥</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toggle Controls Button (Gear) -->
+    <div id="settingsBtn" class="settings-toggle">
+        <svg viewBox="0 0 24 24">
+            <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+        </svg>
+    </div>
+
+    <!-- Admin Settings Sidebar Drawer -->
+    <div id="settingsPanel" class="settings-panel">
+        <div class="settings-header">
+            <div class="settings-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg>
+                Overlay Controls
+            </div>
+            <button id="closeSettingsBtn" class="close-btn">&times;</button>
+        </div>
+
+        <!-- Section: Content -->
+        <div class="settings-section">
+            <div class="section-title">Text Content</div>
+            
+            <div class="form-group">
+                <label for="inputChannel">Channel Name / Logo</label>
+                <input type="text" id="inputChannel" class="form-input" placeholder="RAMGD">
+            </div>
+
+            <div class="form-group">
+                <label for="inputTopic">Countdown Topic</label>
+                <input type="text" id="inputTopic" class="form-input" placeholder="GTA 6 PRE-ORDER COUNTDOWN">
+            </div>
+
+            <div class="form-group">
+                <label for="inputTicker">Footer Ticker Text</label>
+                <input type="text" id="inputTicker" class="form-input" placeholder="Ticker Info text...">
+            </div>
+
+            <div class="form-group">
+                <label for="inputLogoPath">Channel Logo Image Path</label>
+                <input type="text" id="inputLogoPath" class="form-input" placeholder="channels4_profile.jpg">
+            </div>
+        </div>
+
+        <!-- Section: Date & Time -->
+        <div class="settings-section">
+            <div class="section-title">Target Countdown</div>
+            
+            <div class="form-group">
+                <label for="inputDate">Target Date & Time</label>
+                <input type="datetime-local" id="inputDate" class="form-input">
+            </div>
+            
+            <div class="form-group">
+                <label for="inputLiveText">Live Badge Text</label>
+                <input type="text" id="inputLiveText" class="form-input" placeholder="LIVE">
+            </div>
+        </div>
+
+        <!-- Section: Styling & Effects -->
+        <div class="settings-section">
+            <div class="section-title">Visual Styling</div>
+            
+            <div class="form-group">
+                <label>Accent Glow Color</label>
+                <div class="color-chips">
+                    <div class="color-chip active" style="background: #ff007f;" data-color="#ff007f" data-rgb="255,0,127"></div>
+                    <div class="color-chip" style="background: #00ffff;" data-color="#00ffff" data-rgb="0,255,255"></div>
+                    <div class="color-chip" style="background: #ffaa00;" data-color="#ffaa00" data-rgb="255,170,0"></div>
+                    <div class="color-chip" style="background: #39ff14;" data-color="#39ff14" data-rgb="57,255,20"></div>
+                    <div class="color-chip" style="background: #b026ff;" data-color="#b026ff" data-rgb="176,38,255"></div>
+                </div>
+            </div>
+
+            <div class="range-slider-group">
+                <div class="range-slider-header">
+                    <span>Background Dimming</span>
+                    <span id="dimVal">65%</span>
+                </div>
+                <input type="range" id="inputDim" class="range-input" min="10" max="95" value="65">
+            </div>
+
+            <div class="range-slider-group">
+                <div class="range-slider-header">
+                    <span>Background Blur</span>
+                    <span id="blurVal">8px</span>
+                </div>
+                <input type="range" id="inputBlur" class="range-input" min="0" max="25" value="8">
+            </div>
+
+            <div class="range-slider-group">
+                <div class="range-slider-header">
+                    <span>Particle Density</span>
+                    <span id="particleVal">60</span>
+                </div>
+                <input type="range" id="inputParticles" class="range-input" min="0" max="150" value="60">
+            </div>
+
+            <div class="switch-group">
+                <span class="switch-label">Show Left Poster Card</span>
+                <label class="switch">
+                    <input type="checkbox" id="inputShowLeft" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="switch-group">
+                <span class="switch-label">Show Right Video Card</span>
+                <label class="switch">
+                    <input type="checkbox" id="inputShowRight" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="switch-group">
+                <span class="switch-label">Show Channel Profile Logo</span>
+                <label class="switch">
+                    <input type="checkbox" id="inputShowLogo" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="switch-group">
+                <span class="switch-label">Hide Settings Gear (OBS Mode)</span>
+                <label class="switch">
+                    <input type="checkbox" id="inputHideGear">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <p style="font-size: 11px; color: rgba(255,255,255,0.4); margin-top:-5px; line-height: 1.3;">
+                * If hidden, press <strong>ESC</strong> or <strong>Double-Click</strong> the page to open controls.
+            </p>
+        </div>
+
+        <!-- Section: Audio Settings -->
+        <div class="settings-section">
+            <div class="section-title">Background Audio</div>
+            
+            <div class="form-group">
+                <label for="inputAudioUrl">Audio URL or File</label>
+                <input type="text" id="inputAudioUrl" class="form-input" placeholder="music.mp3">
+            </div>
+
+            <div class="range-slider-group">
+                <div class="range-slider-header">
+                    <span>Audio Volume</span>
+                    <span id="volumeVal">50%</span>
+                </div>
+                <input type="range" id="inputVolume" class="range-input" min="0" max="100" value="50">
+            </div>
+
+            <div style="display:flex; gap:10px; margin-top:5px;">
+                <button id="audioPlayBtn" class="btn-secondary" style="flex:1;">🎵 Play</button>
+                <button id="audioPauseBtn" class="btn-secondary" style="flex:1;">⏸️ Pause</button>
+            </div>
+        </div>
+
+        <button id="btnReset" class="btn-secondary" style="border-color:#ff4444; color:#ff4444; margin-top: 10px;">Reset to Defaults</button>
+        <button id="btnSave" class="btn-primary">Save Settings</button>
+    </div>
+
+    <!-- Hidden HTML5 Audio Element -->
+    <audio id="bgAudio" loop></audio>
+
+    <!-- Logic Script -->
+    <script>
+        // Default settings config schema
+        const DEFAULT_CONFIG = {
+            channelName: "RAMGD",
+            countdownTopic: "GTA 6 PRE-ORDER COUNTDOWN",
+            tickerText: "🔥 WAITING FOR GTA 6 PRE-ORDER • LIVE ON RAMGD • PRE-ORDERS COMING SOON 🔥",
+            targetDate: "2027-01-01T00:00",
+            liveText: "LIVE",
+            accentColor: "#ff007f",
+            accentColorRgb: "255,0,127",
+            bgDim: 65,
+            bgBlur: 8,
+            particleDensity: 60,
+            showLeftCard: true,
+            showRightCard: true,
+            hideGear: false,
+            audioUrl: "music.mp3",
+            audioVolume: 50,
+            audioPlaying: false,
+            channelLogoUrl: "channels4_profile.jpg",
+            showChannelLogo: true
+        };
+
+        // Application State
+        let config = { ...DEFAULT_CONFIG };
+
+        // Load config from localStorage
+        function loadConfig() {
+            try {
+                const saved = localStorage.getItem("gta6_countdown_config");
+                if (saved) {
+                    config = { ...DEFAULT_CONFIG, ...JSON.parse(saved) };
+                }
+            } catch (e) {
+                console.error("Local storage error:", e);
+            }
+        }
+
+        // Save config to localStorage
+        function saveConfig() {
+            try {
+                localStorage.setItem("gta6_countdown_config", JSON.stringify(config));
+            } catch (e) {
+                console.error("Failed to save config:", e);
+            }
+        }
+
+        // DOM elements
+        const channelNameEl = document.getElementById("channelName");
+        const countdownTopicEl = document.getElementById("countdownTopic");
+        const liveTextEl = document.getElementById("liveText");
+        const marqueeTickerEl = document.getElementById("marqueeTicker");
+        const leftCardEl = document.getElementById("leftCard");
+        const rightCardEl = document.getElementById("rightCard");
+        const bgOverlayEl = document.getElementById("bgOverlay");
+        const bgImageEl = document.getElementById("bgImage");
+        const settingsBtnEl = document.getElementById("settingsBtn");
+        const settingsPanelEl = document.getElementById("settingsPanel");
+        const closeSettingsBtnEl = document.getElementById("closeSettingsBtn");
+        const channelLogoContainerEl = document.getElementById("channelLogoContainer");
+        const channelLogoImgEl = document.getElementById("channelLogoImg");
+        
+        // Input Fields
+        const inputChannel = document.getElementById("inputChannel");
+        const inputTopic = document.getElementById("inputTopic");
+        const inputTicker = document.getElementById("inputTicker");
+        const inputDate = document.getElementById("inputDate");
+        const inputLiveText = document.getElementById("inputLiveText");
+        const inputDim = document.getElementById("inputDim");
+        const inputBlur = document.getElementById("inputBlur");
+        const inputParticles = document.getElementById("inputParticles");
+        const inputShowLeft = document.getElementById("inputShowLeft");
+        const inputShowRight = document.getElementById("inputShowRight");
+        const inputHideGear = document.getElementById("inputHideGear");
+        const inputAudioUrl = document.getElementById("inputAudioUrl");
+        const inputVolume = document.getElementById("inputVolume");
+        const inputLogoPath = document.getElementById("inputLogoPath");
+        const inputShowLogo = document.getElementById("inputShowLogo");
+        
+        // Audio Element
+        const bgAudio = document.getElementById("bgAudio");
+        const audioPrompt = document.getElementById("audioPrompt");
+
+        // UI Value indicators
+        const dimVal = document.getElementById("dimVal");
+        const blurVal = document.getElementById("blurVal");
+        const particleVal = document.getElementById("particleVal");
+        const volumeVal = document.getElementById("volumeVal");
+
+        // Apply config states to browser UI
+        function applyConfig() {
+            // Apply text contents
+            channelNameEl.textContent = config.channelName;
+            countdownTopicEl.textContent = config.countdownTopic;
+            liveTextEl.textContent = config.liveText;
+            
+            // Rebuild marquee content
+            marqueeTickerEl.innerHTML = `<span>${config.tickerText}</span><span>${config.tickerText}</span>`;
+
+            // Card visibility
+            leftCardEl.style.display = config.showLeftCard ? "flex" : "none";
+            rightCardEl.style.display = config.showRightCard ? "flex" : "none";
+
+            // Gear visibility
+            if (config.hideGear) {
+                settingsBtnEl.classList.add("hidden");
+            } else {
+                settingsBtnEl.classList.remove("hidden");
+            }
+
+            // CSS Custom Properties (Theme Accent Colors, blur, dimming)
+            document.documentElement.style.setProperty("--accent-color", config.accentColor);
+            document.documentElement.style.setProperty("--accent-color-rgb", config.accentColorRgb);
+            document.documentElement.style.setProperty("--bg-dim", (config.bgDim / 100));
+            document.documentElement.style.setProperty("--bg-blur", `${config.bgBlur}px`);
+            
+            // Adjust dim & blur directly on background image/overlay
+            bgImageEl.style.filter = `blur(${config.bgBlur}px)`;
+            
+            // Particle density refresh
+            initParticles(config.particleDensity);
+
+            // Audio volume
+            bgAudio.volume = config.audioVolume / 100;
+            if (bgAudio.src !== getAbsoluteAudioSrc(config.audioUrl)) {
+                bgAudio.src = config.audioUrl;
+            }
+
+            // Channel Logo updates
+            channelLogoContainerEl.style.display = config.showChannelLogo ? "flex" : "none";
+            if (channelLogoImgEl.src !== getAbsoluteAudioSrc(config.channelLogoUrl)) {
+                channelLogoImgEl.src = config.channelLogoUrl;
+            }
+
+            // Sync forms with variables
+            inputChannel.value = config.channelName;
+            inputTopic.value = config.countdownTopic;
+            inputTicker.value = config.tickerText;
+            inputDate.value = config.targetDate;
+            inputLiveText.value = config.liveText;
+            inputDim.value = config.bgDim;
+            dimVal.textContent = `${config.bgDim}%`;
+            inputBlur.value = config.bgBlur;
+            blurVal.textContent = `${config.bgBlur}px`;
+            inputParticles.value = config.particleDensity;
+            particleVal.textContent = config.particleDensity;
+            inputShowLeft.checked = config.showLeftCard;
+            inputShowRight.checked = config.showRightCard;
+            inputHideGear.checked = config.hideGear;
+            inputAudioUrl.value = config.audioUrl;
+            inputVolume.value = config.audioVolume;
+            volumeVal.textContent = `${config.audioVolume}%`;
+            inputLogoPath.value = config.channelLogoUrl;
+            inputShowLogo.checked = config.showChannelLogo;
+
+            // Active Color Chip status sync
+            document.querySelectorAll(".color-chip").forEach(chip => {
+                if (chip.getAttribute("data-color") === config.accentColor) {
+                    chip.classList.add("active");
+                } else {
+                    chip.classList.remove("active");
+                }
+            });
+        }
+
+        // Helper to resolve URL path comparisons
+        function getAbsoluteAudioSrc(url) {
+            const temp = document.createElement("a");
+            temp.href = url;
+            return temp.href;
+        }
+
+        // Toggle Sidebar Controls
+        function toggleSettings() {
+            settingsPanelEl.classList.toggle("open");
+        }
+
+        // Handle Audio Playback with Autoplay Protection
+        function startAudio() {
+            bgAudio.play().then(() => {
+                audioPrompt.style.display = "none";
+                config.audioPlaying = true;
+            }).catch(err => {
+                console.log("Autoplay blocked. Showing unmute banner.", err);
+                audioPrompt.style.display = "flex";
+            });
+        }
+
+        // Event Listeners for controls
+        settingsBtnEl.addEventListener("click", toggleSettings);
+        closeSettingsBtnEl.addEventListener("click", toggleSettings);
+        
+        // Listen to Esc key to open/close settings (convenient for OBS interactions)
+        window.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") {
+                toggleSettings();
+            }
+        });
+
+        // Double click background to open settings
+        window.addEventListener("dblclick", (e) => {
+            // Avoid triggers when double-clicking inputs or control panel
+            if (!settingsPanelEl.contains(e.target) && !settingsBtnEl.contains(e.target)) {
+                toggleSettings();
+            }
+        });
+
+        // Clicking the notification banner starts audio
+        audioPrompt.addEventListener("click", () => {
+            startAudio();
+        });
+
+        // Start audio once page is touched/clicked anywhere (backup safety)
+        document.body.addEventListener("click", () => {
+            if (!config.audioPlaying && bgAudio.src) {
+                startAudio();
+            }
+        }, { once: true });
+
+        // Accent Color Chip Clicks
+        document.querySelectorAll(".color-chip").forEach(chip => {
+            chip.addEventListener("click", () => {
+                document.querySelector(".color-chip.active").classList.remove("active");
+                chip.classList.add("active");
+                
+                config.accentColor = chip.getAttribute("data-color");
+                config.accentColorRgb = chip.getAttribute("data-rgb");
+                
+                document.documentElement.style.setProperty("--accent-color", config.accentColor);
+                document.documentElement.style.setProperty("--accent-color-rgb", config.accentColorRgb);
+            });
+        });
+
+        // Realtime sync sliders values
+        inputDim.addEventListener("input", () => {
+            dimVal.textContent = `${inputDim.value}%`;
+            document.documentElement.style.setProperty("--bg-dim", (inputDim.value / 100));
+        });
+
+        inputBlur.addEventListener("input", () => {
+            blurVal.textContent = `${inputBlur.value}px`;
+            bgImageEl.style.filter = `blur(${inputBlur.value}px)`;
+        });
+
+        inputParticles.addEventListener("input", () => {
+            particleVal.textContent = inputParticles.value;
+        });
+
+        inputVolume.addEventListener("input", () => {
+            volumeVal.textContent = `${inputVolume.value}%`;
+            bgAudio.volume = inputVolume.value / 100;
+        });
+
+        // Play/Pause Test Buttons
+        document.getElementById("audioPlayBtn").addEventListener("click", () => {
+            bgAudio.src = inputAudioUrl.value;
+            bgAudio.volume = inputVolume.value / 100;
+            bgAudio.play().then(() => {
+                audioPrompt.style.display = "none";
+                config.audioPlaying = true;
+            });
+        });
+
+        document.getElementById("audioPauseBtn").addEventListener("click", () => {
+            bgAudio.pause();
+            config.audioPlaying = false;
+        });
+
+        // Save Settings Actions
+        document.getElementById("btnSave").addEventListener("click", () => {
+            config.channelName = inputChannel.value.trim() || DEFAULT_CONFIG.channelName;
+            config.countdownTopic = inputTopic.value.trim() || DEFAULT_CONFIG.countdownTopic;
+            config.tickerText = inputTicker.value.trim() || DEFAULT_CONFIG.tickerText;
+            config.targetDate = inputDate.value;
+            config.liveText = inputLiveText.value.trim() || DEFAULT_CONFIG.liveText;
+            
+            config.bgDim = parseInt(inputDim.value);
+            config.bgBlur = parseInt(inputBlur.value);
+            config.particleDensity = parseInt(inputParticles.value);
+            config.showLeftCard = inputShowLeft.checked;
+            config.showRightCard = inputShowRight.checked;
+            config.hideGear = inputHideGear.checked;
+            config.audioUrl = inputAudioUrl.value.trim();
+            config.audioVolume = parseInt(inputVolume.value);
+            config.channelLogoUrl = inputLogoPath.value.trim() || DEFAULT_CONFIG.channelLogoUrl;
+            config.showChannelLogo = inputShowLogo.checked;
+
+            saveConfig();
+            applyConfig();
+            toggleSettings();
+            
+            // Reload audio
+            bgAudio.src = config.audioUrl;
+            bgAudio.volume = config.audioVolume / 100;
+            startAudio();
+        });
+
+        // Reset Settings Action
+        document.getElementById("btnReset").addEventListener("click", () => {
+            if (confirm("Reset overlay configuration to default GTA 6 settings?")) {
+                config = { ...DEFAULT_CONFIG };
+                saveConfig();
+                applyConfig();
+                bgAudio.src = config.audioUrl;
+                bgAudio.volume = config.audioVolume / 100;
+                startAudio();
+            }
+        });
+
+
+        /* COUNTDOWN TIMER LOGIC */
+        const daysBox = document.getElementById("daysBox");
+        const hoursBox = document.getElementById("hoursBox");
+        const minutesBox = document.getElementById("minutesBox");
+        const secondsBox = document.getElementById("secondsBox");
+
+        function padZero(num) {
+            return num < 10 && num >= 0 ? "0" + num : num;
+        }
+
+        const countdownInterval = setInterval(() => {
+            if (!config.targetDate) return;
+
+            const targetTime = new Date(config.targetDate).getTime();
+            const currentTime = new Date().getTime();
+            const difference = targetTime - currentTime;
+
+            if (difference <= 0) {
+                daysBox.textContent = "00";
+                hoursBox.textContent = "00";
+                minutesBox.textContent = "00";
+                secondsBox.textContent = "00";
+                countdownTopicEl.textContent = "🎉 PRE-ORDERS ARE LIVE NOW! 🎉";
+                return;
+            }
+
+            const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+
+            daysBox.textContent = padZero(days);
+            hoursBox.textContent = padZero(hours);
+            minutesBox.textContent = padZero(minutes);
+            secondsBox.textContent = padZero(seconds);
+        }, 1000);
+
+
+        /* HTML5 CANVAS NEON EMBER PARTICLES */
+        const canvas = document.getElementById("particles-canvas");
+        const ctx = canvas.getContext("2d");
+        let particles = [];
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        window.addEventListener("resize", resizeCanvas);
+        resizeCanvas();
+
+        class Particle {
+            constructor() {
+                this.reset();
+                this.y = Math.random() * canvas.height; // Spread initially
+            }
+
+            reset() {
+                this.x = Math.random() * canvas.width;
+                this.y = canvas.height + Math.random() * 20;
+                this.size = Math.random() * 3.5 + 0.8;
+                this.speedY = -(Math.random() * 1.8 + 0.5);
+                this.speedX = Math.random() * 0.8 - 0.4;
+                this.opacity = Math.random() * 0.5 + 0.1;
+                this.fadeRate = Math.random() * 0.005 + 0.001;
+            }
+
+            update() {
+                this.y += this.speedY;
+                this.x += this.speedX;
+                
+                // Slowly fade out as it goes higher
+                if (this.y < canvas.height * 0.7) {
+                    this.opacity -= this.fadeRate;
+                }
+
+                if (this.y < 0 || this.opacity <= 0) {
+                    this.reset();
+                }
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(${config.accentColorRgb}, ${this.opacity})`;
+                
+                // Add soft glowing borders
+                ctx.shadowBlur = this.size * 3;
+                ctx.shadowColor = config.accentColor;
+                ctx.fill();
+                
+                // Reset shadow blur for optimization
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        function initParticles(density) {
+            particles = [];
+            for (let i = 0; i < density; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        function animateParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].update();
+                particles[i].draw();
+            }
+            requestAnimationFrame(animateParticles);
+        }
+
+        // Initialize App
+        loadConfig();
+        applyConfig();
+        animateParticles();
+        
+        // Autostart audio try
+        setTimeout(() => {
+            startAudio();
+        }, 1000);
+
+    </script>
+</body>
+</html>
