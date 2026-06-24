@@ -161,6 +161,18 @@
             60% { transform: translateX(-50%) translateY(-5px); }
         }
 
+        /* DISC ROTATION */
+        @keyframes spin {
+            100% { transform: rotate(360deg); }
+        }
+        .disc-icon {
+            display: inline-block;
+            animation: spin 3s linear infinite;
+        }
+        .disc-icon.paused {
+            animation-play-state: paused;
+        }
+
         /* MAIN CONTENT STRUCTURE */
         .main-layout {
             display: flex;
@@ -825,7 +837,7 @@
 
     <!-- Audio Unmute Prompt -->
     <div id="audioPrompt" class="audio-prompt" style="display: none;">
-        <span>🔊 Click to enable Background Audio</span>
+        <span class="disc-icon">💿</span> <span id="audioPromptText">Now Playing</span>
     </div>
 
     <!-- Main Container Layout -->
@@ -1070,7 +1082,7 @@
             showLeftCard: true,
             showRightCard: true,
             hideGear: false,
-            audioUrl: "music.mp3",
+            audioUrl: "music.mp3.mp3",
             audioVolume: 50,
             audioPlaying: false,
             channelLogoUrl: "channels4_profile.jpg",
@@ -1247,12 +1259,15 @@
 
         // Handle Audio Playback with Autoplay Protection
         function startAudio() {
+            audioPrompt.style.display = "flex";
             bgAudio.play().then(() => {
-                audioPrompt.style.display = "none";
+                document.getElementById("audioPromptText").textContent = "Now Playing";
+                document.querySelector(".disc-icon").classList.remove("paused");
                 config.audioPlaying = true;
             }).catch(err => {
                 console.log("Autoplay blocked. Showing unmute banner.", err);
-                audioPrompt.style.display = "flex";
+                document.getElementById("audioPromptText").textContent = "Click to Play Music";
+                document.querySelector(".disc-icon").classList.add("paused");
             });
         }
 
@@ -1325,9 +1340,14 @@
         document.getElementById("audioPlayBtn").addEventListener("click", () => {
             bgAudio.src = inputAudioUrl.value;
             bgAudio.volume = inputVolume.value / 100;
+            audioPrompt.style.display = "flex";
             bgAudio.play().then(() => {
-                audioPrompt.style.display = "none";
+                document.getElementById("audioPromptText").textContent = "Now Playing";
+                document.querySelector(".disc-icon").classList.remove("paused");
                 config.audioPlaying = true;
+            }).catch(err => {
+                alert("Could not play music. Please ensure '" + inputAudioUrl.value + "' is uploaded to GitHub and the name matches exactly!");
+                console.error(err);
             });
         });
 
